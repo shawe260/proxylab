@@ -1,0 +1,7 @@
+syn keyword CTagsMember rio_bufptr rio_cnt rio_buf rio_fd
+syn keyword CTagsConstant connection proxy_connection accepts user_agent accept_encoding
+syn keyword CTagsFunction Sigprocmask app_error Fputs Rio_readlineb Munmap Fstat get_filetype Dup2 Free rio_readn Open_listenfd main Wait Socket P fwdreq2server Fread Fclose Kill read_requesthdrs Select parse_uri Fdopen Pthread_self serve_static Gethostbyaddr Listen Fork Setpgid Rio_writen Gethostbyname Pthread_once rio_readnb Alarm open_clientfdr sigpipe_handler Sem_init Rio_readn Rio_readnb Malloc Realloc clienterror Pthread_create Pthread_join Sigemptyset Pause rio_readinitb open_listenfd Stat Sigaddset
+syn keyword CTagsFunction open_clientfd Getpgrp Mmap Setsockopt doproxy Bind unix_error Calloc V Sigismember rio_readlineb Connect Fgets Close dns_error Open Fwrite rio_writen Pthread_cancel Write Waitpid Read posix_error serve_dynamic Rio_readinitb rio_read Execve Sigdelset Signal doit Pthread_detach Lseek Pthread_exit Open_clientfd fwdres2client Accept Sigfillset Sleep Fopen
+syn keyword CTagsType SA handler_t rio_t
+syn keyword CTagsDefinedName MAXBUF RIO_BUFSIZE DEF_UMASK S_PORT MAX_CACHE_SIZE DEF_MODE MAX_OBJECT_SIZE dbg_printf DEBUG __CSAPP_H__ MAXLINE LISTENQ
+
