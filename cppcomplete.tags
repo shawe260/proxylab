@@ -336,8 +336,6 @@ ITIMER_REAL	/usr/include/sys/time.h	97;"	d
 ITIMER_VIRTUAL	/usr/include/sys/time.h	100;"	d
 ITIMER_VIRTUAL	/usr/include/sys/time.h	99;"	e	enum:__itimer_which
 LITTLE_ENDIAN	/usr/include/endian.h	46;"	d
-MAX_CACHE_SIZE	proxy.c	4;"	d	file:
-MAX_OBJECT_SIZE	proxy.c	5;"	d	file:
 MB_CUR_MAX	/usr/include/stdlib.h	139;"	d
 NFDBITS	/usr/include/sys/select.h	88;"	d
 NSIG	/usr/include/signal.h	207;"	d
@@ -1762,9 +1760,7 @@ _xmm	/usr/include/bits/sigcontext.h	121;"	m	struct:_fpstate	typeref:struct:_fpst
 _xmm	/usr/include/bits/sigcontext.h	69;"	m	struct:_fpstate	typeref:struct:_fpstate::_xmmreg	access:public
 _xmmreg	/usr/include/bits/sigcontext.h	41;"	s
 accept	/usr/include/sys/socket.h	214;"	p
-accept	proxy.c	8;"	v	file:
 accept4	/usr/include/sys/socket.h	222;"	p
-accept_encoding	proxy.c	9;"	v	file:
 atof	/usr/include/stdlib.h	279;"	f
 atoi	/usr/include/stdlib.h	284;"	f
 atol	/usr/include/stdlib.h	289;"	f
@@ -1797,10 +1793,10 @@ cwd	/usr/include/bits/sigcontext.h	112;"	m	struct:_fpstate	access:public
 daddr_t	/usr/include/sys/types.h	116;"	t
 dataoff	/usr/include/bits/sigcontext.h	58;"	m	struct:_fpstate	access:public
 datasel	/usr/include/bits/sigcontext.h	59;"	m	struct:_fpstate	access:public
+delete_object	cache.c	54;"	f
+destroy_obj	cache.c	119;"	f
 dev_t	/usr/include/sys/types.h	61;"	t
 div_t	/usr/include/stdlib.h	102;"	t	typeref:struct:__anon51
-doproxy	proxy.c	11;"	p	file:
-doproxy	proxy.c	38;"	f
 dprintf	/usr/include/stdio.h	419;"	p
 drand48_data	/usr/include/stdlib.h	418;"	s
 ds	/usr/include/bits/sigcontext.h	86;"	m	struct:sigcontext	access:public
@@ -1937,9 +1933,12 @@ in6_pktinfo	/usr/include/netinet/in.h	471;"	s
 in_addr	/usr/include/netinet/in.h	142;"	s
 in_addr_t	/usr/include/netinet/in.h	141;"	t
 in_port_t	/usr/include/netinet/in.h	97;"	t
+init_cache	cache.c	89;"	f
+init_obj	cache.c	99;"	f
 ino64_t	/usr/include/sys/types.h	56;"	t
 ino_t	/usr/include/sys/types.h	49;"	t
 ino_t	/usr/include/sys/types.h	51;"	t
+insert_object	cache.c	14;"	f
 int16_t	/usr/include/stdint.h	38;"	t
 int16_t	/usr/include/sys/types.h	164;"	t
 int32_t	/usr/include/stdint.h	39;"	t
@@ -1993,6 +1992,7 @@ isascii_l	/usr/include/ctype.h	315;"	d
 isblank	/usr/include/ctype.h	186;"	d
 isblank_l	/usr/include/ctype.h	259;"	v
 isblank_l	/usr/include/ctype.h	312;"	d
+iscached	cache.c	80;"	f
 iscntrl	/usr/include/ctype.h	104;"	v
 iscntrl	/usr/include/ctype.h	175;"	d
 iscntrl_l	/usr/include/ctype.h	249;"	v
@@ -2047,7 +2047,6 @@ lldiv_t	/usr/include/stdlib.h	122;"	t	typeref:struct:__anon53
 locale_t	/usr/include/xlocale.h	43;"	t
 loff_t	/usr/include/sys/types.h	45;"	t
 magic	/usr/include/bits/sigcontext.h	62;"	m	struct:_fpstate	access:public
-main	proxy.c	13;"	f
 mbrlen	/usr/include/wchar.h	397;"	f
 mbstate_t	/usr/include/wchar.h	106;"	t
 mkostemp	/usr/include/stdlib.h	680;"	d
@@ -2427,7 +2426,6 @@ ulong	/usr/include/sys/types.h	151;"	t
 ungetc	/usr/include/stdio.h	697;"	p
 ungetwc	/usr/include/wchar.h	787;"	p
 useconds_t	/usr/include/sys/types.h	137;"	t
-user_agent	proxy.c	7;"	v	file:
 ushort	/usr/include/sys/types.h	152;"	t
 va_list	/usr/include/stdio.h	80;"	t
 val	/usr/include/getopt.h	113;"	m	struct:option	access:public

@@ -1,8 +1,6 @@
-#define DEBUG
 #include "csapp.h"
+#include "cache.h"
 
-#define MAX_CACHE_SIZE 1049000
-#define MAX_OBJECT_SIZE 102400
 
 #define S_PORT 80 /* Default server port*/ 
 
@@ -12,23 +10,28 @@ static const char *accept_encoding = "Accept-Encoding: gzip, deflate\r\n";
 static const char *connection = "Connection: close\r\n";
 static const char *proxy_connection = "Proxy-Connection: close\r\n";
 
+void *task (void *vargp);
 void doproxy(int fd);
 void clienterror(int fd, char *cause, char *errnum,
         char *shortmsg, char *longmsg);
 int read_requesthdrs(rio_t *rio, char *buf);
+void get_reshdrs(rio_t *server, char* reshdrs);
 int parse_uri(char *uri, char *furi, char *host);
 void fwdreq2server(int server_fd, char *req);
 void fwdres2client(int client_fd, char *res, size_t size);
+void fwdobj2client(int client_fd, cacheobj *obj);
 
-/*void sigpipe_handler(int sig)
-{
-    dbg_printf("Receive the sigpipe signal!\n");
-}*/
+pxycache *Pxycache;
 
 int main(int argc, char **argv)
 {
-    int listenfd, connfd, port, clientlen;
+    int listenfd, port, clientlen;
     struct sockaddr_in clientaddr;
+    pthread_t tid;
+
+    /* Init the cache */ 
+    Pxycache = Malloc(sizeof(pxycache));
+    init_cache(Pxycache);
 
     Signal(SIGPIPE, SIG_IGN);
 
@@ -40,13 +43,23 @@ int main(int argc, char **argv)
 
     listenfd = Open_listenfd(port);
     while (1) {
+        int *connfdp;
+        connfdp = Malloc(sizeof(int));
         clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
-        doproxy(connfd);
-        Close(connfd);
+        *connfdp = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
+        Pthread_create(&tid, NULL, task, connfdp);
     }
 
     return 0;
+}
+
+void *task (void *vargp) {
+    int connfd = *((int *)vargp);
+    Pthread_detach(pthread_self());
+    Free(vargp);
+    doproxy(connfd);
+    Close(connfd);
+    return NULL;
 }
 
 /*
@@ -66,6 +79,7 @@ void doproxy(int clientfd)
     int p2s;  /* fd from proxy to server*/ 
     ssize_t size;
     rio_t rio_client, rio_server;
+    char *original_uri;
 
     /* Get HTTP request and header information from client */
     Rio_readinitb(&rio_client, clientfd);
@@ -80,26 +94,61 @@ void doproxy(int clientfd)
 
     /* Forward the HTTP request to the server */
     port = parse_uri(uri, furi, host);
-    if(!hdr_res) {
+    port = ((port == 0) ? S_PORT:port);
+    if (!hdr_res) {
         sprintf(req, "Host %s\r\n%s", host, reqbuf);
         sprintf(reqbuf, "%s", req);
     }
     sprintf(req, "GET %s HTTP/1.0\r\n%s", furi, reqbuf);
-    dbg_printf("The request to the server is \r\n%s", req);
-    if(port == 0)
-        p2s = open_clientfd(host, S_PORT);    
-    else
+    /*dbg_printf("The request to the server is \r\n%s", req);*/
+
+    /* If the requested object was cached, forward the object to client*/
+    if (iscached(Pxycache, uri)) {
+        cacheobj *obj = get_obj_from_cache(Pxycache, uri);
+        fwdobj2client(clientfd, obj);
+    }
+    else {
+        /* If the object was not cached, send the request to server and try to
+         * cache the object */
         p2s = open_clientfd(host, port);
 
-    if (p2s == -1) { 
-        return;
-    }
-    fwdreq2server(p2s, req);
+        if (p2s == -1) { 
+            clienterror(clientfd, host, "400", "Bad Request",
+                    "The host name or port number maybe invalid");
+            return;
+        }
+        fwdreq2server(p2s, req);
 
-    /* Get feed back from server */
-    Rio_readinitb(&rio_server, p2s);
-    while((size = Rio_readnb(&rio_server, res, MAXBUF)) != 0) {
-        fwdres2client(clientfd, res, size);
+        /* Get feed back from server */
+        Rio_readinitb(&rio_server, p2s);
+
+        /* Read the response from the server, parse the response header, create the cache obj
+         * and store the object to Pxycache */ 
+        get_reshdrs(&rio_server, res);
+        fwdres2client(clientfd, res, strlen(res));
+        char *reshdrs;
+        reshdrs = Malloc(strlen(res)+1);
+        strcpy(reshdrs, res);
+        char content[MAX_OBJECT_SIZE];
+        size_t tmp_size = 0;
+        while((size = Rio_readnb(&rio_server, res, MAXBUF)) != 0) {
+            tmp_size += size;
+            fwdres2client(clientfd, res, size);
+            if (tmp_size <= MAX_OBJECT_SIZE)
+                memcpy((char *)(content+tmp_size-size), res, size);
+        }
+
+        /* store the original_uri*/ 
+        original_uri = Malloc(strlen(uri)+1);
+        strcpy(original_uri, uri);
+
+        cacheobj *tmp_obj;
+        tmp_obj = Malloc(sizeof(cacheobj));
+        init_obj(tmp_obj, original_uri, content, tmp_size, reshdrs);
+        insert_object(Pxycache, tmp_obj);
+#ifdef DEBUG
+        check_cache(Pxycache);
+#endif
     }
 }
 
@@ -134,7 +183,6 @@ int  read_requesthdrs(rio_t *rio, char *req)
     char host[MAXLINE];
     int ret = 0;
 
-     /* todo: SIGPIPE should be handle */ 
     do{
         rio_readlineb(rio, buf, MAXLINE);
         if (strstr(buf, "Host")) {
@@ -156,6 +204,24 @@ int  read_requesthdrs(rio_t *rio, char *req)
 }
 
 /*
+ * get_reshdrs - get response headers from server
+ */
+void get_reshdrs(rio_t *server, char* reshdrs)
+{
+    char buf[MAXLINE];
+
+    strcpy(reshdrs, "");
+    Rio_readlineb(server, buf, MAXLINE);
+    while (strcmp(buf, "\r\n") != 0) {
+        strcat(reshdrs, buf);
+        Rio_readlineb(server, buf, MAXLINE);
+    }
+    strcat(reshdrs, "\r\n");
+
+    /*dbg_printf("The response header is:\n%s", reshdrs);*/
+}
+
+/*
  * parse_uri - parse the current uri such as http:// into a formatted
  * uri(furi) without hostname and a hostname
  * If the uri contains a port information, return the port number
@@ -173,7 +239,9 @@ int parse_uri(char *uri, char *furi, char *host)
     }
 
     if (strstr(host, ":")) {
-        sscanf(host, "%[^:]:%d", host, &port);
+        char buf[MAXLINE];
+        strcpy(buf, host);
+        sscanf(buf, "%[^:]:%d", host, &port);
         return port;
     }
 
@@ -194,6 +262,18 @@ void fwdreq2server(int server_fd, char *req)
 void fwdres2client(int client_fd, char *res, size_t size)
 {
     rio_writen(client_fd, res, size);
+}
+
+/*
+ * fwdobj2client - forward the cached object to client
+ */
+void fwdobj2client(int client_fd, cacheobj *obj)
+{
+    /* First forward back the response header */ 
+    fwdres2client(client_fd, obj->reshdrs, strlen(obj->reshdrs));
+
+    /* Forward back the content */ 
+    fwdres2client(client_fd, obj->content, obj->content_size);
 }
 
 /*
