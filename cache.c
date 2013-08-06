@@ -1,3 +1,12 @@
+/*
+ * Author: shiweid
+ *
+ * cache.h include the structure and basic functions of a cache specialy designed
+ * for the web proxy. 
+ * The common operations involve searching the cache, insert or delete a cached object
+ * These operations are thread-safe using pthread reader-writer lock
+ */
+
 #include "cache.h"
 
 /* Static helper function */ 
@@ -18,6 +27,9 @@ int insert_object(pxycache *Pxycache, cacheobj *obj)
         destroy_obj(obj);
         return -1;
     }
+
+    /* Writer: need to lock to ensure safety */ 
+    pthread_rwlock_wrlock(&(Pxycache->lock));
 
     if ((content_size + Pxycache->cur_size) <= MAX_CACHE_SIZE) {
         if (Pxycache->head != NULL)
@@ -47,6 +59,7 @@ int insert_object(pxycache *Pxycache, cacheobj *obj)
         Pxycache->cur_size += content_size;
     }
 
+    pthread_rwlock_unlock(&(Pxycache->lock));
     dbg_printf("insertion complete\n\n");
     return 1;
 }
@@ -111,6 +124,10 @@ cacheobj *get_obj_from_cache(pxycache *Pxycache, char* uri)
     while (tmp != NULL) {
         if ((strcmp(uri, tmp->uri) == 0)) {
             /* LRU: put tmp at the head */ 
+            dbg_printf("Cache hit!\n");
+
+            pthread_rwlock_wrlock(&(Pxycache->lock));
+
             if (tmp->prev != NULL) {
                 if (tmp->next == NULL) {
                     Pxycache->rear = tmp->prev;
@@ -129,11 +146,18 @@ cacheobj *get_obj_from_cache(pxycache *Pxycache, char* uri)
                     Pxycache->head = tmp;
                 }
             }
+
+            pthread_rwlock_unlock(&(Pxycache->lock));
+
+            /* The return pointer is a reader pointer, it can only
+             * be released after reading is done */ 
+            pthread_rwlock_rdlock(&(Pxycache->lock));
             return tmp;
         }
         tmp = tmp->next;
     }
 
+    dbg_printf("cache miss!\n");
     return NULL;
 }
 
@@ -180,6 +204,7 @@ void init_obj(cacheobj * obj, char *uri, char *content, size_t content_size, cha
  */
 void check_cache(pxycache *Pxycache)
 {
+    pthread_rwlock_rdlock(&(Pxycache->lock));
     if (Pxycache->cur_size > MAX_CACHE_SIZE)
         printf("Error: current size in cache exceeds maximum\n");
     
@@ -193,10 +218,6 @@ void check_cache(pxycache *Pxycache)
 
         if (tmp->content_size > MAX_OBJECT_SIZE)
             printf("Error: the size of the content exceeds maximum\n");
-
-        /*if (tmp->content_size != strlen(tmp->content))
-            printf("Error: the content_size %d doesn't match the content %d\nThe content is\
-                    \n%s", (int)tmp->content_size, (int)strlen(tmp->content), tmp->content);*/
 
         if (tmp->prev != NULL) {
             if (tmp->prev->next != tmp)
@@ -214,6 +235,16 @@ void check_cache(pxycache *Pxycache)
 
         tmp = tmp->next;
     }
+
+    pthread_rwlock_unlock(&(Pxycache->lock));
+}
+
+/*
+ * obj_read_done - release the reader lock
+ */
+void obj_read_done(pxycache *Pxycache)
+{
+    pthread_rwlock_unlock(&(Pxycache->lock));
 }
 
 /*

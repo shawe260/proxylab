@@ -24,7 +24,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define DEBUG
+/*#define DEBUG*/
 #ifdef DEBUG
 #define dbg_printf(...) printf(__VA_ARGS__)
 #else
@@ -60,7 +60,7 @@ extern char **environ; /* defined by libc */
 /* Misc constants */
 #define	MAXLINE	 8192  /* max text line length */
 #define MAXBUF   8192  /* max I/O buffer size */
-#define LISTENQ  1024  /* second argument to listen() */
+#define LISTENQ  8192  /* second argument to listen() */
 
 /* Our own error-handling functions */
 void unix_error(char *msg);
@@ -132,6 +132,7 @@ void Connect(int sockfd, struct sockaddr *serv_addr, int addrlen);
 /* DNS wrappers */
 struct hostent *Gethostbyname(const char *name);
 struct hostent *Gethostbyaddr(const char *addr, int len, int type);
+int Getaddrinfo (char *hostname, struct addrinfo **addr_info); 
 
 /* Pthreads thread control wrappers */
 void Pthread_create(pthread_t *tidp, pthread_attr_t *attrp, 

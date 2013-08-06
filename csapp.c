@@ -449,6 +449,23 @@ struct hostent *Gethostbyaddr(const char *addr, int len, int type)
     return p;
 }
 
+/*
+ * Getaddrinfo - threadsafe wrapper for getaddrinfo
+ */
+int Getaddrinfo (char *hostname, struct addrinfo **addr_info) 
+{
+    struct addrinfo hint;
+    bzero((void *)&hint, sizeof(hint));
+    hint.ai_socktype = SOCK_STREAM;
+    hint.ai_family = AF_INET;
+
+    if (getaddrinfo(hostname, NULL, &hint, addr_info)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 /************************************************
  * Wrappers for Pthreads thread control functions
  ************************************************/
@@ -738,20 +755,20 @@ ssize_t Rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen)
 int open_clientfd(char *hostname, int port) 
 {
     int clientfd;
-    struct hostent *hp;
     struct sockaddr_in serveraddr;
+    struct addrinfo *addr_info;
 
     if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	return -1; /* check errno for cause of error */
 
     /* Fill in the server's IP address and port */
-    if ((hp = gethostbyname(hostname)) == NULL)
+    if ((Getaddrinfo(hostname, &addr_info)) == -1)
 	return -2; /* check h_errno for cause of error */
     bzero((char *) &serveraddr, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
-    bcopy((char *)hp->h_addr_list[0], 
-	  (char *)&serveraddr.sin_addr.s_addr, hp->h_length);
     serveraddr.sin_port = htons(port);
+    serveraddr.sin_addr.s_addr = ((struct sockaddr_in*)(addr_info->ai_addr))->sin_addr.s_addr;
+    freeaddrinfo(addr_info);
 
     /* Establish a connection with the server */
     if (connect(clientfd, (SA *) &serveraddr, sizeof(serveraddr)) < 0)
@@ -800,15 +817,17 @@ int open_listenfd(int port)
  ******************************************/
 int Open_clientfd(char *hostname, int port) 
 {
-    int rc;
+    int res = open_clientfd(hostname, port);
 
-    if ((rc = open_clientfd(hostname, port)) < 0) {
-	if (rc == -1)
-	    unix_error("Open_clientfd Unix error");
-	else        
-	    dns_error("Open_clientfd DNS error");
+    /* Handle the error condition, the server should run forever*/ 
+    if (res == -1) {
+        return -1;
     }
-    return rc;
+    else if (res == -2) {
+        return -1;
+    }
+    else 
+        return res;
 }
 
 int Open_listenfd(int port) 
@@ -816,7 +835,7 @@ int Open_listenfd(int port)
     int rc;
 
     if ((rc = open_listenfd(port)) < 0)
-	unix_error("Open_listenfd error");
+        return -1;
     return rc;
 }
 /* $end csapp.c */

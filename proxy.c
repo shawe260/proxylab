@@ -21,6 +21,7 @@ void fwdreq2server(int server_fd, char *req);
 void fwdres2client(int client_fd, char *res, size_t size);
 void fwdobj2client(int client_fd, cacheobj *obj);
 
+/* The cache */ 
 pxycache *Pxycache;
 
 int main(int argc, char **argv)
@@ -42,17 +43,30 @@ int main(int argc, char **argv)
     port = atoi(argv[1]);
 
     listenfd = Open_listenfd(port);
+    if (listenfd == -1) {
+       fprintf(stderr, "The port may be unavalible\n");
+       return 0;
+    }
+
     while (1) {
         int *connfdp;
         connfdp = Malloc(sizeof(int));
         clientlen = sizeof(clientaddr);
-        *connfdp = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
-        Pthread_create(&tid, NULL, task, connfdp);
+        *connfdp = accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
+        if (*connfdp < 0) {
+            printf("Too much connections! Please wait\n");
+            sleep(1);
+        }
+        else
+            Pthread_create(&tid, NULL, task, connfdp);
     }
 
     return 0;
 }
 
+/*
+ * task - the job function for multithreads
+ */
 void *task (void *vargp) {
     int connfd = *((int *)vargp);
     Pthread_detach(pthread_self());
@@ -103,14 +117,15 @@ void doproxy(int clientfd)
     /*dbg_printf("The request to the server is \r\n%s", req);*/
 
     /* If the requested object was cached, forward the object to client*/
-    if (iscached(Pxycache, uri)) {
-        cacheobj *obj = get_obj_from_cache(Pxycache, uri);
+    cacheobj *obj;
+    if ((obj = get_obj_from_cache(Pxycache, uri)) != NULL) {
         fwdobj2client(clientfd, obj);
+        obj_read_done(Pxycache);
     }
     else {
         /* If the object was not cached, send the request to server and try to
          * cache the object */
-        p2s = open_clientfd(host, port);
+        p2s = Open_clientfd(host, port);
 
         if (p2s == -1) { 
             clienterror(clientfd, host, "400", "Bad Request",
@@ -150,25 +165,6 @@ void doproxy(int clientfd)
         check_cache(Pxycache);
 #endif
     }
-}
-
-/*
- * open_clientfdr - a wrapper function of open_clientfd()
- * 404 not found
- */
-int open_clientfdr(char *hostname, int port)
-{
-    int res = open_clientfd(hostname, port);
-
-    /* Handle the error condition, the server should run forever*/ 
-    if (res == -1) {
-        return -1;
-    }
-    else if (res == -2) {
-        return -1;
-    }
-    else 
-        return res;
 }
 
 /*

@@ -1,8 +1,10 @@
 /*
+ * Author: shiweid
+ *
  * cache.h include the structure and basic functions of a cache specialy designed
  * for the web proxy. 
  * The common operations involve searching the cache, insert or delete a cached object
- * These operations are thread-safe
+ * These operations are thread-safe using pthread reader-writer lock
  */
 
 #ifndef __CACHE_H__
@@ -13,7 +15,7 @@
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
 
-typedef struct cache_object 
+typedef struct cache_object
 {
     char *uri;
     size_t content_size;
@@ -28,6 +30,7 @@ typedef struct cache
     size_t cur_size;
     cacheobj *head;
     cacheobj *rear;
+    pthread_rwlock_t lock;
 }pxycache;
 
 void init_cache(pxycache *Pxycache);
@@ -37,5 +40,6 @@ int iscached(pxycache *Pxycache, char* uri);
 cacheobj *get_obj_from_cache(pxycache *Pxycache, char *uri);
 void init_obj(cacheobj * obj, char *uri, char *content, size_t content_size, char *reshdrs);
 void check_cache(pxycache *Pxycache);
+void obj_read_done(pxycache *Pxycache);
 
 #endif
