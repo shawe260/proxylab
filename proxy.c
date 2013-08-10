@@ -81,7 +81,7 @@ void *task (void *vargp) {
 void doproxy(int clientfd)
 {
     int hdr_res, port;
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE];
+    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], protocal[MAXLINE];
     char furi[MAXLINE]; /* Formated URI */ 
     char host[MAXLINE];
     char req[MAXBUF], resbuf[MAXBUF], reqbuf[MAXBUF];
@@ -96,12 +96,16 @@ void doproxy(int clientfd)
     if (Rio_readlineb(&rio_client, buf, MAXLINE) < 0) {
         return;
     }
-    sscanf(buf, "%s %s %*s", method, uri);
+
+    if (sscanf(buf, "%s %s %s", method, uri, protocal) != 3)
+        return;
+
     if (strcasecmp(method, "GET") != 0) {
         clienterror(clientfd, method, "501", "Not Implemented",
                 "Proxy does not support method other than GET");
         return;
     }
+
     hdr_res = read_requesthdrs(&rio_client, reqbuf);
     if (hdr_res == -1) {
         return;
@@ -115,19 +119,19 @@ void doproxy(int clientfd)
         sprintf(reqbuf, "%s", req);
     }
     sprintf(req, "GET %s HTTP/1.0\r\n%s", furi, reqbuf);
-    /*dbg_printf("The request to the server is \r\n%s", req);*/
+    dbg_printf("The request to the server is \r\n%s", req);
 
     /* If the requested object was cached, forward the object to client*/
     cacheobj *obj;
     if ((obj = get_obj_from_cache(Pxycache, uri)) != NULL) {
-        printf("Cache hit !\n");
+        dbg_printf("--------Cache hit--------\n");
         fwdobj2client(clientfd, obj);
         obj_read_done(Pxycache);
     }
     else {
         /* If the object was not cached, send the request to server and try to
          * cache the object */
-        printf("Cache miss !\n");
+        dbg_printf("++++++++Cache miss+++++++\n");
         p2s = Open_clientfd(host, port);
 
         if (p2s == -1) { 
@@ -150,7 +154,7 @@ void doproxy(int clientfd)
         char content[MAX_OBJECT_SIZE];
         
         size_t tmp_size = 0;
-        while((size = Rio_readnb(&rio_server, resbuf, MAXBUF)) != 0) {
+        while((size = Rio_readnb(&rio_server, resbuf, MAXBUF)) > 0) {
             if (size < 0)
                 return;
             fwdres2client(clientfd, resbuf, size);
@@ -160,16 +164,14 @@ void doproxy(int clientfd)
             memset(resbuf, 0, MAXBUF);
         }
 
-        if (tmp_size != 0) {
-            /* store the original_uri*/ 
-            original_uri = Malloc(strlen(uri)+1);
-            strcpy(original_uri, uri);
+        /* store the original_uri*/ 
+        original_uri = Malloc(strlen(uri)+1);
+        strcpy(original_uri, uri);
 
-            cacheobj *tmp_obj;
-            tmp_obj = Malloc(sizeof(cacheobj));
-            init_obj(tmp_obj, original_uri, content, tmp_size, reshdrs);
-            insert_object(Pxycache, tmp_obj);
-        }
+        cacheobj *tmp_obj;
+        tmp_obj = Malloc(sizeof(cacheobj));
+        init_obj(tmp_obj, original_uri, content, tmp_size, reshdrs);
+        insert_object(Pxycache, tmp_obj);
 #ifdef DEBUG
         check_cache(Pxycache);
 #endif
@@ -190,24 +192,58 @@ int  read_requesthdrs(rio_t *rio, char *req)
     char buf[MAXLINE];
     char host[MAXLINE];
     int ret = 0;
+    int user_agt = 0;
+    int acc = 0;
+    int accept_enc = 0;
+    int conn = 0;
+    int proxy_conn = 0;
 
-    do{
+    while(strcmp(buf, "\r\n") != 0) {
         if ((Rio_readlineb(rio, buf, MAXLINE)) < 0)
             return -1;
-        if (strstr(buf, "Host")) {
+        if (strstr(buf, "Host:")) {
             ret = 1;
             sscanf(buf, "%*[^:]: %s", host);
+            sprintf(req, "Host: %s\r\n", host);
         }
-    }while(strcmp(buf, "\r\n") != 0);
+        else if (strstr(buf, "User-Agent:")) {
+            sprintf(req, "%s%s", req, user_agent);
+            user_agt = 1;
+        }
+        else if (strstr(buf, "Accept:")) {
+            sprintf(req, "%s%s", req, accepts);
+            acc = 1;
+        }
+        else if (strstr(buf, "Accept-Encoding:")){
+            sprintf(req, "%s%s", req, accept_encoding);
+            accept_enc = 1;
+        }
+        else if (strstr(buf, "Connection:")){
+            sprintf(req, "%s%s", req, connection);
+            conn = 1;
+        }
+        else if (strstr(buf, "Proxy-Connectioan:")){
+            sprintf(req, "%s%s", req, proxy_connection);
+            proxy_conn = 1;
+        }
+        else {
+            if (strcmp(buf, "\r\n") != 0)
+                sprintf(req, "%s%s", req, buf);
+        }
+    }
 
     /* Format a new req which will be foward to server later*/ 
-    if (ret == 1)
-        sprintf(req, "Host: %s\r\n", host);
-    sprintf(req, "%s%s", req, user_agent);
-    sprintf(req, "%s%s", req, accepts);
-    sprintf(req, "%s%s", req, accept_encoding);
-    sprintf(req, "%s%s", req, connection);
-    sprintf(req, "%s%s\r\n", req, proxy_connection);
+    if (user_agt == 0)
+        sprintf(req, "%s%s", req, user_agent);
+    if (acc == 0)
+        sprintf(req, "%s%s", req, accepts);
+    if (accept_enc == 0)
+        sprintf(req, "%s%s", req, accept_encoding);
+    if (conn == 0)
+        sprintf(req, "%s%s", req, connection);
+    if (proxy_conn == 0)
+        sprintf(req, "%s%s", req, proxy_connection);
+    sprintf(req, "%s\r\n", req);
 
     return ret;
 }
@@ -238,12 +274,7 @@ int parse_uri(char *uri, char *furi, char *host)
 {
     int port;
 
-    if (strstr(uri, "//")) {
-        sscanf(uri, "%*[^:]://%[^/]%s", host, furi);
-    }
-    else {
-        sscanf(uri, "%[^/]%s", host, furi);
-    }
+    sscanf(uri, "%*[^:]://%[^/]%s", host, furi);
 
     if (strstr(host, ":")) {
         char buf[MAXLINE];

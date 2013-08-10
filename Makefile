@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall -Werror
+CFLAGS = -g -O2 -Wall -Werror
 LDFLAGS = -lpthread
 
 all: proxy
