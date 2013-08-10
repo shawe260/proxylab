@@ -9,26 +9,22 @@
 void unix_error(char *msg) /* unix-style error */
 {
     fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-    exit(0);
 }
 /* $end unixerror */
 
 void posix_error(int code, char *msg) /* posix-style error */
 {
     fprintf(stderr, "%s: %s\n", msg, strerror(code));
-    exit(0);
 }
 
 void dns_error(char *msg) /* dns-style error */
 {
     fprintf(stderr, "%s: DNS error %d\n", msg, h_errno);
-    exit(0);
 }
 
 void app_error(char *msg) /* application error */
 {
     fprintf(stderr, "%s\n", msg);
-    exit(0);
 }
 /* $end errorfuns */
 
@@ -702,14 +698,22 @@ ssize_t Rio_readn(int fd, void *ptr, size_t nbytes)
     if ((n = rio_readn(fd, ptr, nbytes)) < 0)
         if ((errno != ECONNRESET) && (errno != EPIPE))
             unix_error("Rio_readnb error");
+    if (errno == ECONNRESET)
+        printf("fuck!!!!!!!\n");
     return n;
 }
 
-void Rio_writen(int fd, void *usrbuf, size_t n) 
+ssize_t Rio_writen(int fd, void *usrbuf, size_t n) 
 {
-    if (rio_writen(fd, usrbuf, n) != n)
+    ssize_t rc;
+
+    if ((rc = rio_writen(fd, usrbuf, n)) != n)
         if ((errno != ECONNRESET) && (errno != EPIPE))
             unix_error("Rio_readnb error");
+    if (errno == ECONNRESET)
+        printf("faaauck!!!!!!!\n");
+
+    return rc;
 }
 
 void Rio_readinitb(rio_t *rp, int fd)

@@ -16,6 +16,7 @@ Close	csapp.c	/^void Close(int fd) $/;"	f
 Close	tiny/csapp.c	/^void Close(int fd) $/;"	f
 Connect	csapp.c	/^void Connect(int sockfd, struct sockaddr *serv_addr, int addrlen) $/;"	f
 Connect	tiny/csapp.c	/^void Connect(int sockfd, struct sockaddr *serv_addr, int addrlen) $/;"	f
+DEBUG	csapp.h	27;"	d
 DEF_MODE	csapp.h	36;"	d
 DEF_MODE	tiny/csapp.h	30;"	d
 DEF_UMASK	csapp.h	37;"	d
@@ -110,7 +111,7 @@ Rio_readnb	csapp.c	/^ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n) $/;"	
 Rio_readnb	tiny/csapp.c	/^ssize_t Rio_readnb(rio_t *rp, void *usrbuf, size_t n) $/;"	f
 Rio_readn	csapp.c	/^ssize_t Rio_readn(int fd, void *ptr, size_t nbytes) $/;"	f
 Rio_readn	tiny/csapp.c	/^ssize_t Rio_readn(int fd, void *ptr, size_t nbytes) $/;"	f
-Rio_writen	csapp.c	/^void Rio_writen(int fd, void *usrbuf, size_t n) $/;"	f
+Rio_writen	csapp.c	/^ssize_t Rio_writen(int fd, void *usrbuf, size_t n) $/;"	f
 Rio_writen	tiny/csapp.c	/^void Rio_writen(int fd, void *usrbuf, size_t n) $/;"	f
 SA	csapp.h	/^typedef struct sockaddr SA;$/;"	t	typeref:struct:sockaddr
 SA	tiny/csapp.h	/^typedef struct sockaddr SA;$/;"	t	typeref:struct:sockaddr
@@ -158,7 +159,7 @@ accept_encoding	proxy.c	/^static const char *accept_encoding = "Accept-Encoding:
 accepts	proxy.c	/^static const char *accepts = "Accept: text\/html,application\/xhtml+xml,application\/xml;q=0.9,*\/*;q=0.8\\r\\n";$/;"	v	file:
 app_error	csapp.c	/^void app_error(char *msg) \/* application error *\/$/;"	f
 app_error	tiny/csapp.c	/^void app_error(char *msg) \/* application error *\/$/;"	f
-cache_object	cache.h	/^typedef struct cache_object $/;"	s
+cache_object	cache.h	/^typedef struct cache_object$/;"	s
 cacheobj	cache.h	/^}cacheobj;$/;"	t	typeref:struct:cache_object
 cache	cache.h	/^typedef struct cache$/;"	s
 check_cache	cache.c	/^void check_cache(pxycache *Pxycache)$/;"	f
@@ -211,14 +212,14 @@ read_requesthdrs	proxy.c	/^int  read_requesthdrs(rio_t *rio, char *req)$/;"	f
 read_requesthdrs	tiny/tiny.c	/^void read_requesthdrs(rio_t *rp) $/;"	f
 rear	cache.h	/^    cacheobj *rear;$/;"	m	struct:cache
 reshdrs	cache.h	/^    char *reshdrs;    \/* response headers *\/ $/;"	m	struct:cache_object
-rio_buf	csapp.h	/^    char rio_buf[RIO_BUFSIZE]; \/* internal buffer *\/$/;"	m	struct:__anon1
-rio_buf	tiny/csapp.h	/^    char rio_buf[RIO_BUFSIZE]; \/* internal buffer *\/$/;"	m	struct:__anon2
-rio_bufptr	csapp.h	/^    char *rio_bufptr;          \/* next unread byte in internal buf *\/$/;"	m	struct:__anon1
-rio_bufptr	tiny/csapp.h	/^    char *rio_bufptr;          \/* next unread byte in internal buf *\/$/;"	m	struct:__anon2
-rio_cnt	csapp.h	/^    int rio_cnt;               \/* unread bytes in internal buf *\/$/;"	m	struct:__anon1
-rio_cnt	tiny/csapp.h	/^    int rio_cnt;               \/* unread bytes in internal buf *\/$/;"	m	struct:__anon2
-rio_fd	csapp.h	/^    int rio_fd;                \/* descriptor for this internal buf *\/$/;"	m	struct:__anon1
-rio_fd	tiny/csapp.h	/^    int rio_fd;                \/* descriptor for this internal buf *\/$/;"	m	struct:__anon2
+rio_buf	csapp.h	/^    char rio_buf[RIO_BUFSIZE]; \/* internal buffer *\/$/;"	m	struct:__anon2
+rio_buf	tiny/csapp.h	/^    char rio_buf[RIO_BUFSIZE]; \/* internal buffer *\/$/;"	m	struct:__anon1
+rio_bufptr	csapp.h	/^    char *rio_bufptr;          \/* next unread byte in internal buf *\/$/;"	m	struct:__anon2
+rio_bufptr	tiny/csapp.h	/^    char *rio_bufptr;          \/* next unread byte in internal buf *\/$/;"	m	struct:__anon1
+rio_cnt	csapp.h	/^    int rio_cnt;               \/* unread bytes in internal buf *\/$/;"	m	struct:__anon2
+rio_cnt	tiny/csapp.h	/^    int rio_cnt;               \/* unread bytes in internal buf *\/$/;"	m	struct:__anon1
+rio_fd	csapp.h	/^    int rio_fd;                \/* descriptor for this internal buf *\/$/;"	m	struct:__anon2
+rio_fd	tiny/csapp.h	/^    int rio_fd;                \/* descriptor for this internal buf *\/$/;"	m	struct:__anon1
 rio_read	csapp.c	/^static ssize_t rio_read(rio_t *rp, char *usrbuf, size_t n)$/;"	f	file:
 rio_read	tiny/csapp.c	/^static ssize_t rio_read(rio_t *rp, char *usrbuf, size_t n)$/;"	f	file:
 rio_readinitb	csapp.c	/^void rio_readinitb(rio_t *rp, int fd) $/;"	f
@@ -229,8 +230,8 @@ rio_readnb	csapp.c	/^ssize_t rio_readnb(rio_t *rp, void *usrbuf, size_t n) $/;"	
 rio_readnb	tiny/csapp.c	/^ssize_t rio_readnb(rio_t *rp, void *usrbuf, size_t n) $/;"	f
 rio_readn	csapp.c	/^ssize_t rio_readn(int fd, void *usrbuf, size_t n) $/;"	f
 rio_readn	tiny/csapp.c	/^ssize_t rio_readn(int fd, void *usrbuf, size_t n) $/;"	f
-rio_t	csapp.h	/^} rio_t;$/;"	t	typeref:struct:__anon1
-rio_t	tiny/csapp.h	/^} rio_t;$/;"	t	typeref:struct:__anon2
+rio_t	csapp.h	/^} rio_t;$/;"	t	typeref:struct:__anon2
+rio_t	tiny/csapp.h	/^} rio_t;$/;"	t	typeref:struct:__anon1
 rio_writen	csapp.c	/^ssize_t rio_writen(int fd, void *usrbuf, size_t n) $/;"	f
 rio_writen	tiny/csapp.c	/^ssize_t rio_writen(int fd, void *usrbuf, size_t n) $/;"	f
 serve_dynamic	tiny/tiny.c	/^void serve_dynamic(int fd, char *filename, char *cgiargs) $/;"	f

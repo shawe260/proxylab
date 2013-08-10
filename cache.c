@@ -122,31 +122,32 @@ cacheobj *get_obj_from_cache(pxycache *Pxycache, char* uri)
     tmp = Pxycache->head;
 
     while (tmp != NULL) {
+        pthread_rwlock_rdlock(&(Pxycache->lock));
         if ((strcmp(uri, tmp->uri) == 0)) {
+            pthread_rwlock_unlock(&(Pxycache->lock));
+
             /* LRU: put tmp at the head */ 
-            dbg_printf("Cache hit!\n");
-
             pthread_rwlock_wrlock(&(Pxycache->lock));
-
-            if (tmp->prev != NULL) {
-                if (tmp->next == NULL) {
-                    Pxycache->rear = tmp->prev;
-                    tmp->prev->next = NULL;
-                    tmp->next = Pxycache->head;
-                    tmp->prev = NULL;
-                    Pxycache->head->prev = tmp;
-                    Pxycache->head = tmp;
-                }
-                else {
-                    tmp->prev->next = tmp->next;
-                    tmp->next->prev = tmp->prev;
-                    tmp->next = Pxycache->head;
-                    tmp->prev = NULL;
-                    Pxycache->head->prev = tmp;
-                    Pxycache->head = tmp;
+            if (tmp != NULL) {
+                if (tmp->prev != NULL) {
+                    if (tmp->next == NULL) {
+                        Pxycache->rear = tmp->prev;
+                        tmp->prev->next = NULL;
+                        tmp->next = Pxycache->head;
+                        tmp->prev = NULL;
+                        Pxycache->head->prev = tmp;
+                        Pxycache->head = tmp;
+                    }
+                    else {
+                        tmp->prev->next = tmp->next;
+                        tmp->next->prev = tmp->prev;
+                        tmp->next = Pxycache->head;
+                        tmp->prev = NULL;
+                        Pxycache->head->prev = tmp;
+                        Pxycache->head = tmp;
+                    }
                 }
             }
-
             pthread_rwlock_unlock(&(Pxycache->lock));
 
             /* The return pointer is a reader pointer, it can only
@@ -154,10 +155,12 @@ cacheobj *get_obj_from_cache(pxycache *Pxycache, char* uri)
             pthread_rwlock_rdlock(&(Pxycache->lock));
             return tmp;
         }
+        else 
+            pthread_rwlock_unlock(&(Pxycache->lock));
+
         tmp = tmp->next;
     }
 
-    dbg_printf("cache miss!\n");
     return NULL;
 }
 
@@ -178,6 +181,7 @@ void init_obj(cacheobj * obj, char *uri, char *content, size_t content_size, cha
 {
     obj->content_size = content_size;
     dbg_printf("the content length is %d\n", (int)content_size);
+    /*dbg_printf("the uri is %s\n", uri);*/
     if (content_size <= MAX_OBJECT_SIZE) {
         obj->uri = uri;
         obj->content = Malloc(content_size);

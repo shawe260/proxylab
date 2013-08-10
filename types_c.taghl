@@ -6,5 +6,5 @@ syn keyword CTagsFunction Sigprocmask app_error Fputs Rio_readlineb rio_readn Mu
 syn keyword CTagsFunction rio_readinitb Pthread_self Stat Sigaddset iscached open_clientfd Getpgrp Mmap Setsockopt doproxy destroy_obj Bind unix_error Open_clientfd task V Sigismember init_obj rio_readlineb Connect Fgets Close dns_error Open delete_object Fwrite rio_writen Pthread_cancel Write Waitpid fwdobj2client Read posix_error obj_read_done serve_dynamic Rio_readinitb rio_read Execve Sigdelset Signal doit check_cache Pthread_detach Lseek Getaddrinfo Pthread_exit P fwdres2client Accept Sigfillset Sleep
 syn keyword CTagsFunction Fopen
 syn keyword CTagsType rio_t SA handler_t cacheobj pxycache
-syn keyword CTagsDefinedName MAXBUF RIO_BUFSIZE DEF_UMASK S_PORT MAX_CACHE_SIZE DEF_MODE MAX_OBJECT_SIZE dbg_printf __CACHE_H__ __CSAPP_H__ MAXLINE LISTENQ
+syn keyword CTagsDefinedName MAXBUF RIO_BUFSIZE DEF_UMASK S_PORT __CACHE_H__ MAX_CACHE_SIZE DEF_MODE MAX_OBJECT_SIZE dbg_printf DEBUG __CSAPP_H__ MAXLINE LISTENQ
 

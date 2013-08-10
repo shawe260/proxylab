@@ -52,13 +52,8 @@ int main(int argc, char **argv)
         int *connfdp;
         connfdp = Malloc(sizeof(int));
         clientlen = sizeof(clientaddr);
-        *connfdp = accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
-        if (*connfdp < 0) {
-            printf("Too much connections! Please wait\n");
-            sleep(1);
-        }
-        else
-            Pthread_create(&tid, NULL, task, connfdp);
+        *connfdp = Accept(listenfd, (SA *)&clientaddr, (socklen_t *)&clientlen);
+        Pthread_create(&tid, NULL, (void *)task, (void *)connfdp);
     }
 
     return 0;
@@ -89,7 +84,8 @@ void doproxy(int clientfd)
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE];
     char furi[MAXLINE]; /* Formated URI */ 
     char host[MAXLINE];
-    char req[MAXBUF], res[MAXBUF], reqbuf[MAXBUF];
+    char req[MAXBUF], resbuf[MAXBUF], reqbuf[MAXBUF];
+    char res[MAXBUF];
     int p2s;  /* fd from proxy to server*/ 
     ssize_t size;
     rio_t rio_client, rio_server;
@@ -97,14 +93,19 @@ void doproxy(int clientfd)
 
     /* Get HTTP request and header information from client */
     Rio_readinitb(&rio_client, clientfd);
-    Rio_readlineb(&rio_client, buf, MAXLINE);
+    if (Rio_readlineb(&rio_client, buf, MAXLINE) < 0) {
+        return;
+    }
     sscanf(buf, "%s %s %*s", method, uri);
-    if (strcasecmp(method, "GET")) {
+    if (strcasecmp(method, "GET") != 0) {
         clienterror(clientfd, method, "501", "Not Implemented",
                 "Proxy does not support method other than GET");
         return;
     }
     hdr_res = read_requesthdrs(&rio_client, reqbuf);
+    if (hdr_res == -1) {
+        return;
+    }
 
     /* Forward the HTTP request to the server */
     port = parse_uri(uri, furi, host);
@@ -119,12 +120,14 @@ void doproxy(int clientfd)
     /* If the requested object was cached, forward the object to client*/
     cacheobj *obj;
     if ((obj = get_obj_from_cache(Pxycache, uri)) != NULL) {
+        printf("Cache hit !\n");
         fwdobj2client(clientfd, obj);
         obj_read_done(Pxycache);
     }
     else {
         /* If the object was not cached, send the request to server and try to
          * cache the object */
+        printf("Cache miss !\n");
         p2s = Open_clientfd(host, port);
 
         if (p2s == -1) { 
@@ -145,26 +148,34 @@ void doproxy(int clientfd)
         reshdrs = Malloc(strlen(res)+1);
         strcpy(reshdrs, res);
         char content[MAX_OBJECT_SIZE];
+        
         size_t tmp_size = 0;
-        while((size = Rio_readnb(&rio_server, res, MAXBUF)) != 0) {
+        while((size = Rio_readnb(&rio_server, resbuf, MAXBUF)) != 0) {
+            if (size < 0)
+                return;
+            fwdres2client(clientfd, resbuf, size);
             tmp_size += size;
-            fwdres2client(clientfd, res, size);
             if (tmp_size <= MAX_OBJECT_SIZE)
-                memcpy((char *)(content+tmp_size-size), res, size);
+                memcpy((char *)(content + tmp_size - size), resbuf, size);
+            memset(resbuf, 0, MAXBUF);
         }
 
-        /* store the original_uri*/ 
-        original_uri = Malloc(strlen(uri)+1);
-        strcpy(original_uri, uri);
+        if (tmp_size != 0) {
+            /* store the original_uri*/ 
+            original_uri = Malloc(strlen(uri)+1);
+            strcpy(original_uri, uri);
 
-        cacheobj *tmp_obj;
-        tmp_obj = Malloc(sizeof(cacheobj));
-        init_obj(tmp_obj, original_uri, content, tmp_size, reshdrs);
-        insert_object(Pxycache, tmp_obj);
+            cacheobj *tmp_obj;
+            tmp_obj = Malloc(sizeof(cacheobj));
+            init_obj(tmp_obj, original_uri, content, tmp_size, reshdrs);
+            insert_object(Pxycache, tmp_obj);
+        }
 #ifdef DEBUG
         check_cache(Pxycache);
 #endif
+        Close(p2s);
     }
+    return;
 }
 
 /*
@@ -172,6 +183,7 @@ void doproxy(int clientfd)
  * store in req a new request header which will be forward to server later
  * Return 0 if the original header does not contain a Host
  * Return 1 otherwise on success
+ * Return -1 on error
  */
 int  read_requesthdrs(rio_t *rio, char *req)
 {
@@ -180,12 +192,13 @@ int  read_requesthdrs(rio_t *rio, char *req)
     int ret = 0;
 
     do{
-        rio_readlineb(rio, buf, MAXLINE);
+        if ((Rio_readlineb(rio, buf, MAXLINE)) < 0)
+            return -1;
         if (strstr(buf, "Host")) {
             ret = 1;
             sscanf(buf, "%*[^:]: %s", host);
         }
-    }while(!strcmp(buf, "\r\n"));
+    }while(strcmp(buf, "\r\n") != 0);
 
     /* Format a new req which will be foward to server later*/ 
     if (ret == 1)
@@ -213,8 +226,6 @@ void get_reshdrs(rio_t *server, char* reshdrs)
         Rio_readlineb(server, buf, MAXLINE);
     }
     strcat(reshdrs, "\r\n");
-
-    /*dbg_printf("The response header is:\n%s", reshdrs);*/
 }
 
 /*
@@ -249,7 +260,7 @@ int parse_uri(char *uri, char *furi, char *host)
  */
 void fwdreq2server(int server_fd, char *req)
 {
-    rio_writen(server_fd, req, strlen(req));
+   Rio_writen(server_fd, req, strlen(req));
 }
 
 /*
@@ -257,7 +268,7 @@ void fwdreq2server(int server_fd, char *req)
  */
 void fwdres2client(int client_fd, char *res, size_t size)
 {
-    rio_writen(client_fd, res, size);
+    Rio_writen(client_fd, res, size);
 }
 
 /*
